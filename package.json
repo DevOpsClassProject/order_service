@@ -4,8 +4,8 @@
   "main": "index.js",
   "scripts": {
       "start": "node index.js",
-      "test": "jest --ci --forceExit --coverage",
-      "lint": "eslint . || echo 'No linter configured'" 
+      "test": "jest",
+      "lint": "eslint ."
     },
   "dependencies": {
     "express": "^4.18.2",
