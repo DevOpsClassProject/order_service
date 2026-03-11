@@ -32,7 +32,14 @@ pipeline {
                 )
             }
         }
-
+        stage('Prepare Environment') {
+            steps {
+                echo 'Cleaning up dangling Docker networks...'
+                // -f (force) skips the confirmation prompt
+                // || true ensures the pipeline continues even if prune returns a non-zero exit code
+                sh 'docker network prune -f || true'
+            }
+        }
         // STEP 3: Deploy to Rocky Linux via Docker Compose
         stage('Deploy') {
             when { 
@@ -40,7 +47,7 @@ pipeline {
             }
             steps {
                 echo "Deploying Order Service to ${env.BRANCH_NAME}..."
-                sh "docker-compose up -d ecommerce-order"
+                sh "docker compose up -d ecommerce-order"
             }
         }
     }
