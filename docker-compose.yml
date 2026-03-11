@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   ecommerce-order:
     image: ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
