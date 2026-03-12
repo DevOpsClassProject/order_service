@@ -2,7 +2,11 @@
 
 pipeline {
     agent {
-        node { label 'docker-runner' } 
+        node {
+            // If branch is develop, run on the dev-server agent. 
+            // Otherwise (feature branches), use the docker-runner.
+            label (env.CHANGE_BRANCH == 'develop' ? 'docker-v1' : 'docker-runner')
+        }
     }
 
     environment {
@@ -12,6 +16,15 @@ pipeline {
 
         // Database Secrets (Kept here for deployment context)
         DB_PASSWORD_VAL = credentials('db-password-secret')
+        POSTGRES_DB     = 'ecommerce'
+        POSTGRES_USER   = 'postgres'
+        POSTGRES_PASSWORD  = "${DB_PASSWORD_VAL}"
+        PGPORT            = '5432'
+        DB_HOST           = 'ecommerce-db-container'
+        DB_NAME           = 'ecommerce'
+        DB_USER           = 'postgres'
+        DB_PASSWORD       = "${DB_PASSWORD_VAL}"
+        DB_PORT           = '5432'
     }
 
     stages {
@@ -40,28 +53,38 @@ pipeline {
                 sh 'docker network prune -f || true'
             }
         }
-        // STEP 3: Deploy to Rocky Linux via Docker Compose
-        stage('Deploy') {
-            when { 
-                anyOf { branch 'develop'; branch 'main'; branch 'release/*' } 
-            }
+        stage('Run Integration Tests') {
             steps {
-                echo "Deploying Order Service to ${env.BRANCH_NAME}..."
-                sh "docker compose up -d ecommerce-order"
+                script {
+                    build job: '/DevOps project/ecommerce-integration-tests/main', wait: false
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                script {
+                    if (env.CHANGE_BRANCH == 'develop' || env.BRANCH_NAME == 'develop'){
+                        echo "Updating Database container in ${env.BRANCH_NAME}..."
+                        sh "docker compose up -d ecommerce-order"
+                    }else {
+                        echo "Skipping container deployment."
+                    }
+                }
             }
         }
     }
 
     post {
-        success {
-            echo "Successfully deployed ${IMAGE_NAME} build #${BUILD_NUMBER}"
-            build job: '/DevOps project/ecommerce-integration-tests/main', wait: false
-        }
-        failure {
-            echo "Pipeline failed. Verify logs for Test failures or Security vulnerabilities."
-        }
         always {
-            sh 'docker image prune -f'
+            script {
+                // Only prune if we are NOT on a protected branch
+                if ((env.BRANCH_NAME != null && env.BRANCH_NAME.contains('feature')) || env.BRANCH_NAME.contains('feature')) {
+                    echo "Feature branch detected (${env.BRANCH_NAME}). Cleaning up Docker system..."
+                    sh 'docker system prune -f'
+                }else {
+                echo "Skipping Docker prune (Branch is null or not a feature branch)."
+            }
+            }
             deleteDir()
         }
     }
