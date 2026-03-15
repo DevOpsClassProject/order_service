@@ -1,0 +1,23 @@
+services:
+  ecommerce-order:
+    image: ${REGISTRY_USER}/${IMAGE_NAME}:${BUILD_NUMBER}
+    container_name: ecommerce-order-service-container
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PORT=${DB_PORT}
+      - PRODUCT_SERVICE_URL=http://ecommerce-product:3001
+    ports:
+      - "3002:3002"
+    networks:
+      - ecommerce-net
+    depends_on:
+      ecommerce-db:
+        condition: service_healthy
+
+networks:
+  ecommerce-net:
+    name: ecommerce-net
+    driver: bridge
